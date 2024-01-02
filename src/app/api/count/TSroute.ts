@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import { Sequelize, DataTypes } from 'sequelize';
-import { eq } from 'drizzle-orm';
 
 // Replace 'your-database', 'your-username', 'your-password' with your actual database credentials
 const sequelize = new Sequelize('new', 'root', 'jaymatadi', {
@@ -30,38 +29,50 @@ const Count = sequelize.define('count', {
 });
 
 export async function POST(request: Request, response: Response) {
-    try {
-      // Find the count row with id equal to 1
+  const t = await sequelize.transaction();
+
+  try {
+      // Find the count row with id equal to 1 within the transaction
       const countRow = await Count.findOne({
-        where: {
-          id: 1,
-        },
+          where: {
+              id: 1,
+          },
+          transaction: t,
       });
-  
+
       // Check if the count row is found
       if (!countRow) {
-        return response.status(404).json({ error: 'Count not found' });
+          await t.rollback(); // Rollback the transaction if count row is not found
+          return response.status(404).json({ error: 'Count not found' });
       }
-  
-      // Update the count and save the changes
+
+      // Update the count and save the changes within the transaction
       await Count.update({
-        count: (countRow.get('count') as number) + 1,
+          count: (countRow.get('count') as number) + 1,
       }, {
-        where: {
-          id: 1,
-        },
+          where: {
+              id: 1,
+          },
+          transaction: t,
       });
-  
+
+      // Commit the transaction
+      await t.commit();
+
       // Return a success message
       return response.json({
-        message: 'Success',
+          message: 'Success',
       });
-    } catch (error) {
+  } catch (error) {
       console.error(error);
+
+      // Rollback the transaction in case of an error
+      await t.rollback();
+
       // Handle any errors and return an internal server error
       return response.status(500).json({ error: 'Internal Server Error' });
-    }
   }
+}
   
 
 // Sync the model with the database
