@@ -18,6 +18,11 @@ const Count = sequelize.define('count', {
         type: DataTypes.INTEGER,
         allowNull: false,
     },
+    version: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0, // Initial version
+    },
     createdAt: {
         type: DataTypes.DATE,
         defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
@@ -25,56 +30,59 @@ const Count = sequelize.define('count', {
     updatedAt: {
         type: DataTypes.DATE,
         defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
-    },
+    }
 });
 
 export async function POST(request: Request, response: Response) {
-  const t = await sequelize.transaction();
+    const t = await sequelize.transaction();
 
-  try {
-      // Find the count row with id equal to 1 within the transaction
-      const countRow = await Count.findOne({
-          where: {
-              id: 1,
-          },
-          transaction: t,
-          lock: t.LOCK.UPDATE,
-      });
+    try {
+        // Find the count row with id equal to 1 within the transaction
+        const countRow = await Count.findOne({
+            where: {
+                id: 1,
+            },
+            transaction: t,
+            lock: t.LOCK.UPDATE,
+        });
 
-      // Check if the count row is found
-      if (!countRow) {
-          await t.rollback(); // Rollback the transaction if count row is not found
-          return response.status(404).json({ error: 'Count not found' });
-      }
+        // Check if the count row is found
+        if (!countRow) {
+            await t.rollback(); // Rollback the transaction if count row is not found
+            return response.status(404).json({ error: 'Count not found' });
+        }
 
-      // Update the count and save the changes within the transaction
-      await Count.update({
-          count: (countRow.get('count') as number) + 1,
-      }, {
-          where: {
-              id: 1,
-          },
-          transaction: t,
-      });
+        // Update the count and increment the version within the transaction
+        await Count.update({
+            count: (countRow.get('count') as number) + 1,
+            version: (countRow.get('version') as number) + 1, // Increment the version
+        }, {
+            where: {
+                id: 1,
+                version: countRow.get('version'), // Ensure the version matches the current version
+            },
+            transaction: t,
+        });
 
-      // Commit the transaction
-      await t.commit();
 
-      // Return a success message
-      return response.json({
-          message: 'Success',
-      });
-  } catch (error) {
-      console.error(error);
+        // Commit the transaction
+        await t.commit();
 
-      // Rollback the transaction in case of an error
-      await t.rollback();
+        // Return a success message
+        return response.json({
+            message: 'Success',
+        });
+    } catch (error) {
+        console.error(error);
 
-      // Handle any errors and return an internal server error
-      return response.status(500).json({ error: 'Internal Server Error' });
-  }
+        // Rollback the transaction in case of an error
+        await t.rollback();
+
+        // Handle any errors and return an internal server error
+        return response.status(500).json({ error: 'Internal Server Error' });
+    }
 }
-  
+
 
 // Sync the model with the database
 sequelize.sync().then(() => {
