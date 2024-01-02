@@ -38,6 +38,7 @@ export async function POST(request: Request, response: Response) {
               id: 1,
           },
           transaction: t,
+          lock: t.LOCK.UPDATE,
       });
 
       // Check if the count row is found
