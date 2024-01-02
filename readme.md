@@ -56,6 +56,29 @@ Before running the application, make sure you have the following installed:
     npm run sync
     ```
 
+5. Initialize the database with an initial count value:
+
+    Open `TSroute.ts` and find the following code:
+
+    ```javascript
+    // Add this code to initialize the database with a starting count value
+    const initialCount = 10;
+    await Count.create({ count: initialCount });
+    ```
+
+6. Insert SQL script:
+
+    ```bash
+    -- Add this SQL command to initialize the database with a starting count value
+    INSERT INTO counts (count) VALUES (10);
+    ```
+
+7. Save the changes and run the script:
+
+    ```bash
+    npx ts-node src/app/server.ts
+    ```
+
 ## Understanding Database Concurrency Control
 
 The main file `TSroute.ts` includes a `POST` endpoint that increments a counter in the database. It uses Sequelize for database interactions.
